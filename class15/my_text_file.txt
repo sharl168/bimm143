@@ -1,0 +1,12 @@
+
+This us my text notes for class 15. 
+
+Note 1. absolute paths define the route to files from the base of the computer.
+
+relative paths are shortcut paths that are relative to the current working dir. 
+
+Successfully initiated launch of instance (i-0a40abe59dc1e6c21)
+
+
+
+ssh -i "bimm143_sharlene.pem" ubuntu@ec2-52-88-214-152.us-west-2.compute.amazonaws.com
