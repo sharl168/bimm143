@@ -4,7 +4,7 @@ My Bioinformatics work from Spring 2023 at UC San Diego.
 
 From class [BIMM143](https://bioboot.github.io/bimm143_S23/)
 
-- Class 04: [**Bioinformatics data analysis with R**](
+- Class 04: [**Bioinformatics data analysis with R**](https://github.com/sharl168/bimm143/blob/main/class04/class04.ex.pdf)
 
 - Class 05: [**Data Visualization with ggplot2**](https://github.com/sharl168/bimm143/blob/main/lab5/class05.pdf) [source code](https://github.com/sharl168/bimm143/blob/main/lab5/class05.qmd) 
 
