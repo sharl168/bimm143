@@ -1,0 +1,347 @@
+---
+title: "Class 12"
+author: "Sharlene Yang"
+format: pdf
+---
+
+## RNASeq Analysis
+
+Here we will use tbe DESeq2 package for the RNASeq analysis. The data for this hands-on session comes from a published RNA-seq experiment where airway smooth muscle cells were treated with dexamethasone, a synthetic glucocorticoid steroid with anti-inflammatory effects (Himes et al. 2014).
+
+
+#  Import countData and colData
+
+We need two things for this analysis:
+
+- **countData** (counts for every transcript/ gene in each experiment)
+-colData(metadata that describes the experimental setup)
+
+
+```{r}
+countData <- read.csv("airway_scaledcounts.csv", row.names=1)
+head(countData)
+```
+
+```{r}
+metadata <-  read.csv("airway_metadata.csv")
+head(metadata)
+```
+
+
+>Q1. How many genes are in this dataset?
+
+```{r}
+nrow(countData)
+```
+
+>Q2. How many ‘control’ cell lines do we have? 
+
+```{r}
+table(metadata$dex)
+
+```
+
+or
+
+```{r}
+sum(metadata$dex== "control")
+```
+
+There are 4 controls.
+
+
+
+## Toy differential gene expression
+
+- Step 1.
+Calculate the mean of the control camples (i.e. columns in countData)
+Calculate the mean of the treated samples.
+
+(a) We need to find which columns in countData are "control" samples.
+ -look in the metadata (aka colData), $dex column
+ 
+ 
+```{r}
+controls.inds <- metadata$dex == "control"
+controls.inds
+```
+
+(b) Extract all the control columns from `countData` and call it `control.counts`
+
+```{r}
+control.counts <- countData[, controls.inds]
+```
+
+(c) Calculate the mean value across the rows of `control.counts` i.e. calculate the mean count values for each gene in the control samples. 
+
+```{r}
+control.means <- rowMeans(control.counts)
+head(control.means)
+```
+
+> Q3. How would you make the above code in either approach more robust?
+
+Done as seen above.
+
+
+>Q4. Follow the same procedure for the treated samples (i.e. calculate the mean per gene across drug treated samples and assign to a labeled vector called treated.mean)
+
+- Step 2.
+Calculate the mean of the treated samples...
+```{r}
+treated.inds <- metadata$dex == "treated"
+treated.inds
+```
+
+```{r}
+treated.counts <- countData[, treated.inds]
+```
+
+```{r}
+treated.means <- rowMeans(treated.counts)
+head(treated.means)
+```
+
+We now have control and treated mean count values. For ease of book-keeping, I will combine these vectors into a new data.frame called `meancounts`
+
+```{r}
+meancounts <- data.frame(control.means, treated.means)
+head(meancounts)
+```
+
+```{r}
+plot(meancounts)
+```
+
+```{r}
+plot(meancounts, log = "xy")
+```
+
+
+We use log transforms for skewed data such as this and because we really care most about relative changes in magnitude.
+
+We most often use log2 as our transform as the math is easier to interpret than log10 or others. 
+
+If we have no change- ie some values in control and treated are the same, I will have a log2 fold-change of 0.
+
+```{r}
+log2(20/20)
+```
+
+If I have double the amount I will have a log2 fold-change of 1.
+```{r}
+log2(20/10)
+```
+
+If I have half the amount I will have a log2 fold-change of -1.
+```{r}
+log2(10/20)
+```
+
+```{r}
+log2(40/10)
+```
+
+```{r}
+meancounts$log2fc <- log2(meancounts$treated.means / meancounts$control.means)
+head(meancounts)
+```
+
+> Q. How many genes are up regulated at the common threshold of +2 log2FC values?
+
+```{r}
+sum(meancounts$log2fc >= 2, na.rm = TRUE)
+```
+
+Hold on what about the stats! Yes these are big changes but are these changes significant!!
+
+To do this properly we will turn to the DESeq2 package.
+
+# DESeq2 analysis
+
+```{r}
+#| message: false
+library(DESeq2)
+```
+
+To use DEseq we need our input countData in a specific format that DESeq wants:
+
+```{r}
+dds <- DESeqDataSetFromMatrix(countData = countData,
+                       colData= metadata,
+                       design= ~dex)
+```
+
+To run the analysis I can now use the main DESeq2 function called `DESeq()` with `dds` as input
+
+```{r}
+dds <- DESeq(dds)
+```
+
+To get the results back from this `dds` object we can use the `results()` function from the package.
+ 
+```{r}
+res <- results(dds)
+head(res)
+```
+
+Let's make a final (for today) plot of log2 fold-change vs the adjusted P-value.
+
+```{r}
+plot(res$log2FoldChange, res$padj)
+```
+
+It is the low P-values that we care about and these are last in the skewed plot above. Let's take the log of the $padj values for our own plot.
+
+```{r}
+plot(res$log2FoldChange, -log(res$padj))
+abline(v=c(+2,-2), col= "blue")
+abline(h= -log(0.05), col ="blue")
+
+```
+
+
+
+Finally we can make a color vector to use in the plot to better highlight the genes we care about.
+
+```{r} 
+mycols <- rep("gray", nrow(res))
+mycols[abs(res$log2FoldChange) > 2] <- "red"
+mycols[res$padj > 0.05] <- "gray"
+
+
+plot(res$log2FoldChange, -log(res$padj), col = mycols)
+abline(v=c(+2,-2), col= "blue")
+abline(h= -log(0.05), col ="blue")
+
+```
+
+
+
+
+# Day 2
+
+
+```{r}
+head(res)
+```
+
+## Adding annotation to data
+
+
+We can use the AnnotationmDBi package to add annotations data such as gene identifies from different sources to our result objects.
+```{r}
+library("AnnotationDbi")
+library("org.Hs.eg.db")
+```
+
+
+We can translate (aka "map") between all database id format
+
+```{r}
+columns(org.Hs.eg.db)
+```
+
+My IDs are stored in the rowname "res"
+```{r}
+head(rownames(res))
+```
+
+```{r}
+res$symbol <- mapIds(org.Hs.eg.db,
+                     keys=row.names(res), # Our genenames
+                     keytype="ENSEMBL", # The format of our genenames
+                     column="SYMBOL",   # The new format we want to add
+                     multiVals="first")
+```
+
+```{r}
+head(res)
+```
+
+
+```{r}
+res$entrez <- mapIds(org.Hs.eg.db,
+                     keys=row.names(res), # Our genenames
+                     keytype="ENSEMBL", # The format of our genenames
+                  column="ENTREZID", # The new format we want to add
+                     multiVals="first")
+```
+
+```{r}
+res$genename <- mapIds(org.Hs.eg.db,
+                     keys=row.names(res), # Our genenames
+                     keytype="ENSEMBL", # The format of our genenames
+                     column="GENENAME",   # The new format we want to add
+                     multiVals="first")
+```
+
+
+## Save our results to date
+
+```{r}
+write.csv(res, file = "myresults.csv")
+```
+
+
+
+## Pathway analysis
+
+We can use the KEGG database of biological pathways to get some more insight into our differentially expressed genes and the kinds of biology they are involved in.
+
+```{r}
+#I message = False
+library(pathview)
+library(gage)
+library(gageData)
+
+```
+
+
+Look at the first two KEGG Pathways
+```{r}
+data(kegg.sets.hs)
+
+# Examine the first 2 pathways in this kegg set for humans
+head(kegg.sets.hs, 2)
+```
+
+
+```{r}
+head( res$entrez)
+```
+
+Make a new vector of fold-change values that I will use as input for `gage` this will have the ENTREZ IDs as names.
+
+```{r}
+foldchanges = res$log2FoldChange
+names(foldchanges) = res$entrez
+head(foldchanges)
+```
+
+
+```{r}
+# Get the results
+keggres = gage(foldchanges, gsets=kegg.sets.hs)
+```
+
+
+```{r}
+attributes(keggres)
+```
+
+
+look at the top 3 "LESS"
+```{r}
+head(keggres$less, 3)
+```
+
+
+Now I can use the **KEGG IDs** of these pathways from gage to view our genes mapped to these pathways.
+```{r}
+pathview(gene.data=foldchanges, pathway.id="hsa05310")
+```
+
+
+![Asthma pathway from KEGG with our genes shown in color](hsa05310.pathview.png)
+
