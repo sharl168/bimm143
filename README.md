@@ -10,4 +10,4 @@ From class [BIMM143](https://bioboot.github.io/bimm143_S23/)
 
 - Class 06: **R functions** 
 
-- Class 07: **Introduction to machine learningfor Bioinformatics**
+- Class 07: **Introduction to machine learning for Bioinformatics**
